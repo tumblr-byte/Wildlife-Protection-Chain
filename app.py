@@ -16,6 +16,7 @@ import tempfile
 import os
 import base64
 
+
 # Page config
 st.set_page_config(
     page_title="Wildlife Protection Blockchain System",
@@ -149,20 +150,33 @@ if 'results_df' not in st.session_state:
 if 'video_path' not in st.session_state:
     st.session_state.video_path = None
 
-# Load models (cached)
+MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0/best_train.pt"
+MODEL_PATH = "best_train.pt"
+
+def download_model():
+    if not os.path.exists(MODEL_PATH):
+        with requests.get(MODEL_URL, stream=True) as r:
+            r.raise_for_status()
+            with open(MODEL_PATH, "wb") as f:
+                for chunk in r.iter_content(chunk_size=8192):
+                    f.write(chunk)
+
 @st.cache_resource
 def load_models():
     try:
         model = YOLO("yolo12n.pt")
         model2 = YOLO("best.pt")
         animal_envo = YOLO("bests.pt")
-        
+
+        download_model()
         animal_condition_model = models.resnet18(pretrained=True)
         in_features = animal_condition_model.fc.in_features
         animal_condition_model.fc = nn.Linear(in_features, 2)
-        # animal_condition_model.load_state_dict(torch.load("best_train.pt", map_location="cpu"))
+        animal_condition_model.load_state_dict(
+            torch.load(MODEL_PATH, map_location="cpu")
+        )
         animal_condition_model.eval()
-        
+
         return model, model2, animal_envo, animal_condition_model
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
@@ -624,4 +638,5 @@ def main():
         """)
 
 if __name__ == "__main__":
+
     main()
