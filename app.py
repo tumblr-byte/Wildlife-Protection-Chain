@@ -150,15 +150,52 @@ if 'results_df' not in st.session_state:
 if 'video_path' not in st.session_state:
     st.session_state.video_path = None
 
+# Model file paths
+MODEL_FILES = {
+    "yolo12n": "yolo12n.pt",
+    "best": "best.pt", 
+    "bests": "bests.pt",
+    "best_train": "best_train.pt"
+}
+
 # GitHub Release URL for large model file
 MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
-MODEL_PATH = "best_train.pt"
 
-def download_model():
+def check_model_files():
+    """Check if all required model files exist"""
+    missing_files = []
+    existing_files = []
+    
+    for model_name, file_path in MODEL_FILES.items():
+        if os.path.exists(file_path):
+            existing_files.append(f"✅ {file_path}")
+        else:
+            missing_files.append(f"❌ {file_path}")
+    
+    return existing_files, missing_files
+
+def download_yolo_model(model_name):
+    """Download YOLO model if it doesn't exist"""
+    try:
+        # For yolo12n.pt, it should auto-download when first loaded
+        if model_name == "yolo12n.pt":
+            st.info(f"📥 Downloading {model_name} (this is a pretrained model)...")
+            model = YOLO(model_name)  # This will auto-download
+            return model
+        else:
+            return None
+    except Exception as e:
+        st.error(f"❌ Failed to download {model_name}: {str(e)}")
+        return None
+
+def download_large_model():
     """Download the large model file from GitHub releases if not present"""
-    if not os.path.exists(MODEL_PATH):
+    model_path = MODEL_FILES["best_train"]
+    
+    if not os.path.exists(model_path):
         try:
-            st.info(f"📥 Downloading {MODEL_PATH} from GitHub releases... This may take a few minutes.")
+            st.info(f"📥 Downloading {model_path} from GitHub releases... This may take a few minutes.")
+            
             with requests.get(MODEL_URL, stream=True) as r:
                 r.raise_for_status()
                 total_size = int(r.headers.get('content-length', 0))
@@ -167,7 +204,7 @@ def download_model():
                     progress_bar = st.progress(0)
                     downloaded = 0
                     
-                    with open(MODEL_PATH, "wb") as f:
+                    with open(model_path, "wb") as f:
                         for chunk in r.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
@@ -176,49 +213,105 @@ def download_model():
                                 progress_bar.progress(progress)
                     
                     progress_bar.empty()
-                    st.success(f"✅ {MODEL_PATH} downloaded successfully!")
+                    st.success(f"✅ {model_path} downloaded successfully!")
                 else:
-                    with open(MODEL_PATH, "wb") as f:
+                    with open(model_path, "wb") as f:
                         for chunk in r.iter_content(chunk_size=8192):
                             if chunk:
                                 f.write(chunk)
-                    st.success(f"✅ {MODEL_PATH} downloaded successfully!")
+                    st.success(f"✅ {model_path} downloaded successfully!")
                     
         except Exception as e:
-            st.error(f"❌ Failed to download {MODEL_PATH}: {str(e)}")
-            st.info("Please manually download the model file from the GitHub releases page.")
+            st.error(f"❌ Failed to download {model_path}: {str(e)}")
+            st.error("Please check your GitHub URL and ensure the release exists.")
             return False
     return True
 
 @st.cache_resource
 def load_models():
-    """Load all AI models with automatic download for large files"""
+    """Load all AI models with proper error handling"""
+    st.info("🔄 Loading AI models... Please wait.")
+    
+    # Check which model files exist
+    existing_files, missing_files = check_model_files()
+    
+    # Display file status
+    if existing_files:
+        st.success("Found model files:")
+        for file in existing_files:
+            st.text(file)
+    
+    if missing_files:
+        st.warning("Missing model files:")
+        for file in missing_files:
+            st.text(file)
+    
+    models_loaded = {}
+    
     try:
-        # Load YOLO models (should be in project directory)
-        model = YOLO("yolo12n.pt")
-        model2 = YOLO("best.pt")
-        animal_envo = YOLO("bests.pt")
-
-        # Download and load the large condition model
-        if download_model():
+        # Load YOLO models
+        st.info("Loading YOLO detection models...")
+        
+        # Load yolo12n.pt (should auto-download if not present)
+        if os.path.exists(MODEL_FILES["yolo12n"]):
+            models_loaded["model"] = YOLO(MODEL_FILES["yolo12n"])
+            st.success("✅ Loaded yolo12n.pt")
+        else:
+            st.info("📥 yolo12n.pt not found, attempting to download...")
+            models_loaded["model"] = download_yolo_model("yolo12n.pt")
+            if models_loaded["model"]:
+                st.success("✅ Downloaded and loaded yolo12n.pt")
+            else:
+                raise Exception("Failed to load yolo12n.pt")
+        
+        # Load best.pt
+        if os.path.exists(MODEL_FILES["best"]):
+            models_loaded["model2"] = YOLO(MODEL_FILES["best"])
+            st.success("✅ Loaded best.pt")
+        else:
+            raise Exception(f"❌ {MODEL_FILES['best']} not found in project directory")
+        
+        # Load bests.pt
+        if os.path.exists(MODEL_FILES["bests"]):
+            models_loaded["animal_envo"] = YOLO(MODEL_FILES["bests"])
+            st.success("✅ Loaded bests.pt")
+        else:
+            raise Exception(f"❌ {MODEL_FILES['bests']} not found in project directory")
+        
+        # Load condition classification model
+        st.info("Loading animal condition model...")
+        if download_large_model():
             animal_condition_model = models.resnet18(pretrained=True)
             in_features = animal_condition_model.fc.in_features
             animal_condition_model.fc = nn.Linear(in_features, 2)
             animal_condition_model.load_state_dict(
-                torch.load(MODEL_PATH, map_location="cpu")
+                torch.load(MODEL_FILES["best_train"], map_location="cpu")
             )
             animal_condition_model.eval()
+            models_loaded["animal_condition_model"] = animal_condition_model
+            st.success("✅ Loaded animal condition model")
         else:
-            # Fallback: use pretrained model without custom weights
-            animal_condition_model = models.resnet18(pretrained=True)
-            animal_condition_model.eval()
-            st.warning("⚠️ Using fallback model. Some condition detection may be less accurate.")
-
-        return model, model2, animal_envo, animal_condition_model
+            raise Exception("Failed to load animal condition model")
+        
+        st.success("🎉 All models loaded successfully!")
+        return (models_loaded.get("model"), 
+                models_loaded.get("model2"), 
+                models_loaded.get("animal_envo"), 
+                models_loaded.get("animal_condition_model"))
         
     except Exception as e:
-        st.error(f"Error loading models: {str(e)}")
-        st.info("Please ensure all model files are in the project directory or check the GitHub releases.")
+        st.error(f"❌ Error loading models: {str(e)}")
+        
+        # Provide specific troubleshooting
+        st.error("**Troubleshooting:**")
+        if "best.pt" in str(e):
+            st.error("- Ensure 'best.pt' is in the same folder as your app.py file")
+        if "bests.pt" in str(e):
+            st.error("- Ensure 'bests.pt' is in the same folder as your app.py file")
+        if "best_train.pt" in str(e):
+            st.error("- Check your GitHub release URL")
+            st.error("- Ensure the release exists and is publicly accessible")
+        
         return None, None, None, None
 
 # Constants
@@ -380,7 +473,7 @@ def process_video_streamlit(video_path):
     model, model2, animal_envo, animal_condition_model = load_models()
     
     if not all([model, model2, animal_envo, animal_condition_model]):
-        st.error("Failed to load AI models. Please check model files.")
+        st.error("❌ Failed to load AI models. Please check model files and try again.")
         return None, None
     
     cap = cv2.VideoCapture(video_path)
@@ -414,7 +507,7 @@ def process_video_streamlit(video_path):
     progress_bar = st.progress(0)
     status_text = st.empty()
     
-    st.info("🔗 Initializing blockchain for secure data storage...")
+    st.info("🔗 Processing video with blockchain security...")
     
     while True:
         ret, frame = cap.read()
@@ -538,15 +631,29 @@ def process_video_streamlit(video_path):
     else:
         return pd.DataFrame(), output_path
 
-def get_download_link(file_path, file_name):
-    with open(file_path, "rb") as f:
-        data = f.read()
-    b64 = base64.b64encode(data).decode()
-    return f'<a href="data:application/octet-stream;base64,{b64}" download="{file_name}">Download {file_name}</a>'
-
 # Main Streamlit App
 def main():
     st.markdown('<h1 class="main-header">Wildlife Protection Blockchain System</h1>', unsafe_allow_html=True)
+    
+    # Show model status at startup
+    with st.expander("🔧 Model Status Check", expanded=False):
+        existing_files, missing_files = check_model_files()
+        
+        if existing_files:
+            st.success("**Found Model Files:**")
+            for file in existing_files:
+                st.text(file)
+        
+        if missing_files:
+            st.error("**Missing Model Files:**")
+            for file in missing_files:
+                st.text(file)
+            
+            st.info("**Required Files:**")
+            st.text("• yolo12n.pt - Will auto-download")
+            st.text("• best.pt - Must be in project folder")
+            st.text("• bests.pt - Must be in project folder") 
+            st.text("• best_train.pt - Will download from GitHub")
     
     # Sidebar
     st.sidebar.title("🔧 Control Panel")
@@ -678,4 +785,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
