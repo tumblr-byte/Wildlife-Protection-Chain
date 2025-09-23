@@ -303,7 +303,7 @@ MODEL_FILES = {
 }
 
 # GitHub Release URL for large model file
-MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
+MODEL_URL = "https://github.com//Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
 
 def load_models_silently():
     """Load all AI models silently in the background"""
@@ -603,8 +603,31 @@ def process_single_image(image_array):
     results_list = []
     output_image = image_array.copy()
     
-    # Check for threats
-    threats = get_threats(image_array, model, animal_envo)
+    # Check for threats - enhanced for images
+    threats = []
+    try:
+        # Use lower confidence for images
+        results1 = model(image_array, conf=0.4, verbose=False)
+        for result in results1:
+            if result.boxes is not None:
+                for box in result.boxes:
+                    cls_id = int(box.cls.cpu().numpy()[0])
+                    conf = float(box.conf.cpu().numpy()[0])
+                    if conf >= 0.4 and cls_id in more_envo_class:
+                        threats.append(more_envo_class[cls_id])
+
+        results2 = animal_envo(image_array, conf=0.4, verbose=False)
+        for result in results2:
+            if result.boxes is not None:
+                for box in result.boxes:
+                    cls_id = int(box.cls.cpu().numpy()[0])
+                    conf = float(box.conf.cpu().numpy()[0])
+                    if conf >= 0.4 and cls_id in envo_class:
+                        threats.append(envo_class[cls_id])
+    except:
+        pass
+
+    threats = list(set(threats)) if threats else ["None"]
     
     # Process each detection
     for i, detection in enumerate(detections):
@@ -658,7 +681,7 @@ def process_single_image(image_array):
     # Create DataFrame
     df = pd.DataFrame(results_list) if results_list else pd.DataFrame()
     return df, output_image
-
+    
 def process_video_streamlit(video_path):
     """Process video with tracking and blockchain logging"""
     model, model2, animal_envo, animal_condition_model = load_models_silently()
@@ -1248,3 +1271,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
