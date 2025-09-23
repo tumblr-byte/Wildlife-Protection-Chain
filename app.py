@@ -151,7 +151,7 @@ if 'video_path' not in st.session_state:
     st.session_state.video_path = None
 
 # GitHub Release URL for large model file
-MODEL_URL = "https://github.com/tumblr-byte/WildGuard-Blockchain/releases/download/v1.0.0-models/best_train.pt"
+MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
 MODEL_PATH = "best_train.pt"
 
 def download_model():
@@ -678,3 +678,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
