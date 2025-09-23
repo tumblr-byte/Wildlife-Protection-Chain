@@ -15,7 +15,7 @@ from datetime import datetime
 import tempfile
 import os
 import base64
-
+import requests
 
 # Page config
 st.set_page_config(
@@ -150,36 +150,75 @@ if 'results_df' not in st.session_state:
 if 'video_path' not in st.session_state:
     st.session_state.video_path = None
 
-MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0/best_train.pt"
+# GitHub Release URL for large model file
+MODEL_URL = "https://github.com/tumblr-byte/WildGuard-Blockchain/releases/download/v1.0.0-models/best_train.pt"
 MODEL_PATH = "best_train.pt"
 
 def download_model():
+    """Download the large model file from GitHub releases if not present"""
     if not os.path.exists(MODEL_PATH):
-        with requests.get(MODEL_URL, stream=True) as r:
-            r.raise_for_status()
-            with open(MODEL_PATH, "wb") as f:
-                for chunk in r.iter_content(chunk_size=8192):
-                    f.write(chunk)
+        try:
+            st.info(f"📥 Downloading {MODEL_PATH} from GitHub releases... This may take a few minutes.")
+            with requests.get(MODEL_URL, stream=True) as r:
+                r.raise_for_status()
+                total_size = int(r.headers.get('content-length', 0))
+                
+                if total_size > 0:
+                    progress_bar = st.progress(0)
+                    downloaded = 0
+                    
+                    with open(MODEL_PATH, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                                downloaded += len(chunk)
+                                progress = downloaded / total_size
+                                progress_bar.progress(progress)
+                    
+                    progress_bar.empty()
+                    st.success(f"✅ {MODEL_PATH} downloaded successfully!")
+                else:
+                    with open(MODEL_PATH, "wb") as f:
+                        for chunk in r.iter_content(chunk_size=8192):
+                            if chunk:
+                                f.write(chunk)
+                    st.success(f"✅ {MODEL_PATH} downloaded successfully!")
+                    
+        except Exception as e:
+            st.error(f"❌ Failed to download {MODEL_PATH}: {str(e)}")
+            st.info("Please manually download the model file from the GitHub releases page.")
+            return False
+    return True
 
 @st.cache_resource
 def load_models():
+    """Load all AI models with automatic download for large files"""
     try:
+        # Load YOLO models (should be in project directory)
         model = YOLO("yolo12n.pt")
         model2 = YOLO("best.pt")
         animal_envo = YOLO("bests.pt")
 
-        download_model()
-        animal_condition_model = models.resnet18(pretrained=True)
-        in_features = animal_condition_model.fc.in_features
-        animal_condition_model.fc = nn.Linear(in_features, 2)
-        animal_condition_model.load_state_dict(
-            torch.load(MODEL_PATH, map_location="cpu")
-        )
-        animal_condition_model.eval()
+        # Download and load the large condition model
+        if download_model():
+            animal_condition_model = models.resnet18(pretrained=True)
+            in_features = animal_condition_model.fc.in_features
+            animal_condition_model.fc = nn.Linear(in_features, 2)
+            animal_condition_model.load_state_dict(
+                torch.load(MODEL_PATH, map_location="cpu")
+            )
+            animal_condition_model.eval()
+        else:
+            # Fallback: use pretrained model without custom weights
+            animal_condition_model = models.resnet18(pretrained=True)
+            animal_condition_model.eval()
+            st.warning("⚠️ Using fallback model. Some condition detection may be less accurate.")
 
         return model, model2, animal_envo, animal_condition_model
+        
     except Exception as e:
         st.error(f"Error loading models: {str(e)}")
+        st.info("Please ensure all model files are in the project directory or check the GitHub releases.")
         return None, None, None, None
 
 # Constants
@@ -638,5 +677,4 @@ def main():
         """)
 
 if __name__ == "__main__":
-
     main()
