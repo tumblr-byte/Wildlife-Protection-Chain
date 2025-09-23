@@ -607,13 +607,13 @@ def process_single_image(image_array):
     threats = []
     try:
         # Use lower confidence for images
-        results1 = model(image_array, conf=0.4, verbose=False)
+        results1 = model(image_array, conf=0.7, verbose=False)
         for result in results1:
             if result.boxes is not None:
                 for box in result.boxes:
                     cls_id = int(box.cls.cpu().numpy()[0])
                     conf = float(box.conf.cpu().numpy()[0])
-                    if conf >= 0.4 and cls_id in more_envo_class:
+                    if conf >= 0.7 and cls_id in more_envo_class:
                         threats.append(more_envo_class[cls_id])
 
         results2 = animal_envo(image_array, conf=0.4, verbose=False)
@@ -1271,4 +1271,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
