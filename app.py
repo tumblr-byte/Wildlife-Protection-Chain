@@ -28,14 +28,14 @@ st.set_page_config(
     initial_sidebar_state="expanded"
 )
 
-# Custom CSS for better styling
+# Custom CSS for better styling - Nature Theme
 st.markdown("""
 <style>
     .main-header {
         font-size: 3rem;
         font-weight: bold;
         text-align: center;
-        color: #2E8B57;
+        color: #2D5016;
         margin-bottom: 2rem;
         text-shadow: 2px 2px 4px rgba(0,0,0,0.1);
     }
@@ -43,58 +43,62 @@ st.markdown("""
         padding: 1.5rem;
         border-radius: 15px;
         margin: 1rem 0;
-        border-left: 8px solid #ff4444;
-        background: linear-gradient(135deg, #ffebee 0%, #ffcdd2 100%);
-        box-shadow: 0 4px 15px rgba(255, 68, 68, 0.2);
+        border-left: 8px solid #D32F2F;
+        background: linear-gradient(135deg, #FFEBEE 0%, #FFCDD2 100%);
+        box-shadow: 0 4px 15px rgba(211, 47, 47, 0.2);
     }
     .success-box {
         padding: 1.5rem;
         border-radius: 15px;
         margin: 1rem 0;
-        border-left: 8px solid #4CAF50;
-        background: linear-gradient(135deg, #e8f5e8 0%, #c8e6c9 100%);
-        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
+        border-left: 8px solid #388E3C;
+        background: linear-gradient(135deg, #E8F5E8 0%, #C8E6C9 100%);
+        box-shadow: 0 4px 15px rgba(56, 142, 60, 0.2);
     }
     .blockchain-block {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #2E7D32 0%, #1B5E20 100%);
         color: white;
         padding: 1.2rem;
         border-radius: 15px;
         margin: 0.8rem 0;
-        box-shadow: 0 6px 20px rgba(102, 126, 234, 0.3);
+        box-shadow: 0 6px 20px rgba(46, 125, 50, 0.3);
         transition: transform 0.3s ease;
     }
     .blockchain-block:hover {
         transform: translateY(-2px);
     }
     .upload-section {
-        background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+        background: linear-gradient(135deg, #E8F5E8 0%, #A5D6A7 100%);
         padding: 2rem;
         border-radius: 20px;
         margin: 1rem 0;
-        border: 3px dashed #667eea;
+        border: 3px dashed #4CAF50;
     }
     .metric-card {
-        background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+        background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%);
         color: white;
         padding: 1rem;
         border-radius: 15px;
         text-align: center;
         margin: 0.5rem 0;
-        box-shadow: 0 4px 15px rgba(102, 126, 234, 0.2);
-    }
-    .loading-hidden {
-        display: none !important;
+        box-shadow: 0 4px 15px rgba(76, 175, 80, 0.2);
     }
     .voice-alert {
-        background: linear-gradient(135deg, #ff6b6b 0%, #feca57 100%);
+        background: linear-gradient(135deg, #FF8A65 0%, #FF7043 100%);
         color: white;
         padding: 1rem;
         border-radius: 15px;
         margin: 1rem 0;
         text-align: center;
-        box-shadow: 0 4px 15px rgba(255, 107, 107, 0.3);
+        box-shadow: 0 4px 15px rgba(255, 112, 67, 0.3);
         animation: pulse 2s infinite;
+    }
+    .history-section {
+        background: linear-gradient(135deg, #FFF3E0 0%, #FFE0B2 100%);
+        padding: 1.5rem;
+        border-radius: 15px;
+        margin: 1rem 0;
+        border-left: 5px solid #FF9800;
     }
     @keyframes pulse {
         0% { opacity: 1; }
@@ -104,16 +108,40 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+import streamlit.components.v1 as components
+
 # Voice Alert System
+def speak_alert_web(message):
+    """Use browser's speech synthesis - works in cloud environments"""
+    # Clean message for JavaScript (escape quotes and special chars)
+    clean_message = message.replace('"', '\\"').replace("'", "\\'")
+    
+    speech_js = f"""
+    <script>
+    if ('speechSynthesis' in window) {{
+        const utterance = new SpeechSynthesisUtterance("{clean_message}");
+        utterance.rate = 0.8;
+        utterance.pitch = 1.0;
+        utterance.volume = 0.9;
+        
+        // Wait a moment then speak
+        setTimeout(() => {{
+            speechSynthesis.speak(utterance);
+        }}, 100);
+    }}
+    </script>
+    """
+    components.html(speech_js, height=0)
+    return True
+
 def speak_alert(message):
-    """Generate voice alert using text-to-speech"""
+    """Fallback to pyttsx3 for local environments"""
     try:
         import pyttsx3
         engine = pyttsx3.init()
-        engine.setProperty('rate', 150)  # Speed of speech
-        engine.setProperty('volume', 0.9)  # Volume level
+        engine.setProperty('rate', 150)
+        engine.setProperty('volume', 0.9)
         
-        # Run TTS in a separate thread to avoid blocking
         def tts_thread():
             engine.say(message)
             engine.runAndWait()
@@ -124,8 +152,59 @@ def speak_alert(message):
         thread.start()
         
         return True
-    except:
+    except ImportError:
         return False
+    except Exception:
+        return False
+
+def add_to_session_history(analysis_type, results_df):
+    """Add analysis results to session history"""
+    if results_df is not None and not results_df.empty:
+        history_entry = {
+            "timestamp": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            "analysis_type": analysis_type,
+            "total_animals": len(results_df),
+            "species_breakdown": results_df['species_type'].value_counts().to_dict() if 'species_type' in results_df.columns else {},
+            "condition_breakdown": results_df['condition'].value_counts().to_dict() if 'condition' in results_df.columns else {},
+            "threat_breakdown": results_df[results_df['threats'] != 'None']['threats'].value_counts().to_dict() if 'threats' in results_df.columns else {},
+            "location_breakdown": results_df['location'].value_counts().to_dict() if 'location' in results_df.columns else {}
+        }
+        st.session_state.session_history.append(history_entry)
+        st.session_state.total_analyses += 1
+
+def create_session_charts():
+    """Create charts for current session data"""
+    if not st.session_state.session_history:
+        return None, None, None
+    
+    # Combine all session data
+    all_species = {}
+    all_conditions = {}
+    all_threats = {}
+    
+    for entry in st.session_state.session_history:
+        # Species data
+        for species, count in entry['species_breakdown'].items():
+            all_species[species] = all_species.get(species, 0) + count
+        
+        # Condition data  
+        for condition, count in entry['condition_breakdown'].items():
+            all_conditions[condition] = all_conditions.get(condition, 0) + count
+        
+        # Threat data
+        for threat, count in entry['threat_breakdown'].items():
+            if threat != 'None':
+                all_threats[threat] = all_threats.get(threat, 0) + count
+    
+    return all_species, all_conditions, all_threats
+
+def get_specific_location_for_alert(animal_type):
+    """Get a specific location for voice alerts"""
+    if animal_type in wildlife_sanctuary["regions"]:
+        park = wildlife_sanctuary["name"]
+        region = random.choice(wildlife_sanctuary["regions"][animal_type])
+        return f"{park}, {region}"
+    return f"{wildlife_sanctuary['name']}, Monitoring Station Alpha"
 
 # Blockchain Implementation
 class Block:
@@ -210,6 +289,10 @@ if 'models_loaded' not in st.session_state:
     st.session_state.models_loaded = False
 if 'voice_enabled' not in st.session_state:
     st.session_state.voice_enabled = True
+if 'session_history' not in st.session_state:
+    st.session_state.session_history = []
+if 'total_analyses' not in st.session_state:
+    st.session_state.total_analyses = 0
 
 # Model file paths
 MODEL_FILES = {
@@ -470,7 +553,6 @@ def show_voice_alert(alert_type, message, animal_type="", location="", threats=[
             <p>🔊 Voice alert has been triggered!</p>
         </div>
         """
-        # Voice message
         voice_msg = f"Alert! Injured {animal_type} detected at {location}. Medical assistance required immediately."
         
     elif alert_type == "threat":
@@ -485,17 +567,25 @@ def show_voice_alert(alert_type, message, animal_type="", location="", threats=[
             <p>🔊 Voice alert has been triggered!</p>
         </div>
         """
-        # Voice message
         voice_msg = f"Threat alert! {threat_list} detected at {location}. Immediate intervention required."
     
     st.markdown(alert_html, unsafe_allow_html=True)
     
     # Trigger voice alert if enabled
     if st.session_state.voice_enabled:
-        if speak_alert(voice_msg):
-            st.success("🔊 Voice alert delivered successfully!")
-        else:
-            st.info("🔇 Voice alert not available (install pyttsx3 for voice alerts)")
+        try:
+            # Try web-based speech first (works in cloud)
+            speak_alert_web(voice_msg)
+            st.success("🔊 Voice alert delivered via browser!")
+        except:
+            try:
+                # Fallback to pyttsx3 for local environments
+                if speak_alert(voice_msg):
+                    st.success("🔊 Voice alert delivered via system!")
+                else:
+                    st.info("🔇 Voice system temporarily unavailable")
+            except:
+                st.info("🔇 Browser speech not supported on this device")
 
 def process_single_image(image_array):
     """Process a single image for wildlife detection"""
@@ -715,7 +805,7 @@ def process_video_streamlit(video_path):
     # Show voice alerts for video processing
     for track_id in injury_alerts:
         animal_type = track_id.split('_')[0]
-        location = get_random_location(animal_type)
+        location = get_specific_location_for_alert(animal_type)
         show_voice_alert("injury", f"Immediate medical attention required for {animal_type}!", animal_type, location)
     
     if len(threat_alerts) > 0:
@@ -724,7 +814,7 @@ def process_video_streamlit(video_path):
             all_threats.update(threat_tuple)
         threat_list = [t for t in all_threats if t != "None"]
         if threat_list:
-            location = "Wildlife Reserve, Multiple Regions"
+            location = get_specific_location_for_alert("tiger")  # Use tiger zone as default for threats
             show_voice_alert("threat", f"Detected threats: {', '.join(threat_list)}", location=location, threats=threat_list)
     
     # Create DataFrame
@@ -748,7 +838,7 @@ def main():
     
     if st.session_state.voice_enabled:
         st.sidebar.success("🔊 Voice alerts are ON")
-        st.sidebar.info("💡 Install pyttsx3: `pip install pyttsx3`")
+        st.sidebar.info("💡 Uses browser speech synthesis - works in cloud!")
     else:
         st.sidebar.info("🔇 Voice alerts are OFF")
     
@@ -810,6 +900,9 @@ def main():
                             st.session_state.results_df = df
                             st.session_state.processing_complete = True
                             
+                            # Add to session history
+                            add_to_session_history("Image Analysis", df)
+                            
                             # Display processed image
                             output_image_rgb = cv2.cvtColor(output_image, cv2.COLOR_BGR2RGB)
                             st.image(output_image_rgb, caption="Detection Results", use_column_width=True)
@@ -867,6 +960,9 @@ def main():
                             st.session_state.results_df = df
                             st.session_state.output_video_path = output_video_path
                             st.session_state.processing_complete = True
+                            
+                            # Add to session history
+                            add_to_session_history("Video Analysis", df)
                             
                             st.markdown("""
                             <div class="success-box">
@@ -1016,13 +1112,14 @@ def main():
         model_status = "✅ Ready" if st.session_state.models_loaded else "⏳ Loading"
         
         st.markdown(f"""
-        <div style="background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); 
+        <div style="background: linear-gradient(135deg, #4CAF50 0%, #2E7D32 100%); 
                     color: white; padding: 1rem; border-radius: 15px; margin: 1rem 0;">
             <strong>🤖 AI Models:</strong> {model_status}<br>
             <strong>💾 Device:</strong> {device.upper()}<br>
             <strong>🔗 Blockchain:</strong> Active<br>
             <strong>🔊 Voice Alerts:</strong> {'ON' if st.session_state.voice_enabled else 'OFF'}<br>
-            <strong>🔒 Security:</strong> Military Grade
+            <strong>🔒 Security:</strong> Military Grade<br>
+            <strong>🌿 Theme:</strong> Nature Inspired
         </div>
         """, unsafe_allow_html=True)
         
@@ -1044,6 +1141,79 @@ def main():
                 for condition, count in condition_counts.items():
                     emoji = "🏥" if condition == "injured" else "✅"
                     st.markdown(f"**{emoji} {condition.title()}:** {count}")
+        
+        # Session History Section
+        st.markdown("---")
+        st.markdown("### 📊 Session History")
+        
+        st.markdown(f"""
+        <div class="metric-card">
+            <h3>{st.session_state.total_analyses}</h3>
+            <p>🔍 Total Analyses</p>
+        </div>
+        """, unsafe_allow_html=True)
+        
+        if st.session_state.session_history:
+            # Create session charts
+            all_species, all_conditions, all_threats = create_session_charts()
+            
+            # Session summary charts
+            with st.expander("📈 Session Analytics", expanded=False):
+                if all_species:
+                    st.markdown("**🦁 Species Distribution**")
+                    species_df = pd.DataFrame(list(all_species.items()), columns=['Species', 'Count'])
+                    st.bar_chart(species_df.set_index('Species'))
+                
+                if all_conditions:
+                    st.markdown("**🏥 Health Conditions**")
+                    conditions_df = pd.DataFrame(list(all_conditions.items()), columns=['Condition', 'Count'])
+                    
+                    # Create pie chart data for plotly
+                    try:
+                        import plotly.express as px
+                        fig = px.pie(conditions_df, values='Count', names='Condition', 
+                                   color_discrete_map={'normal': '#4CAF50', 'injured': '#F44336'})
+                        st.plotly_chart(fig, use_container_width=True)
+                    except:
+                        st.bar_chart(conditions_df.set_index('Condition'))
+                
+                if all_threats:
+                    st.markdown("**⚠️ Threat Analysis**")
+                    threats_df = pd.DataFrame(list(all_threats.items()), columns=['Threat', 'Count'])
+                    st.bar_chart(threats_df.set_index('Threat'))
+                
+                # Download session report
+                if st.button("📊 Download Session Report", use_container_width=True):
+                    session_report = {
+                        'session_summary': {
+                            'total_analyses': st.session_state.total_analyses,
+                            'species_distribution': all_species,
+                            'condition_distribution': all_conditions,
+                            'threat_distribution': all_threats
+                        },
+                        'detailed_history': st.session_state.session_history
+                    }
+                    
+                    report_json = json.dumps(session_report, indent=2)
+                    st.download_button(
+                        "💾 Download JSON Report",
+                        report_json,
+                        f"session_report_{datetime.now().strftime('%Y%m%d_%H%M%S')}.json",
+                        "application/json"
+                    )
+            
+            # Recent activity
+            st.markdown("**🕒 Recent Activity**")
+            for entry in reversed(st.session_state.session_history[-3:]):  # Last 3 entries
+                st.markdown(f"""
+                <div class="history-section">
+                    <strong>{entry['analysis_type']}</strong> - {entry['timestamp']}<br>
+                    🐅 Animals: {entry['total_animals']} | 
+                    🏥 Injured: {entry['condition_breakdown'].get('injured', 0)}
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.info("🔍 No analyses performed yet in this session")
         
         # Help section
         with st.expander("ℹ️ Help & Information"):
