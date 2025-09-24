@@ -621,6 +621,7 @@ def show_voice_alert(alert_type, message, animal_type="", location="", threats=[
             except:
                 st.info("🔇 Browser speech not supported on this device")
 
+
 def process_single_image(image_array):
     """Process a single image for wildlife detection - Fixed threat detection threshold"""
     model, model2, animal_envo, animal_condition_model = load_models_silently()
@@ -709,23 +710,28 @@ def process_single_image(image_array):
         output_image = cv2.addWeighted(overlay, 0.8, output_image, 0.2, 0)
         
         # Add white text with shadow for better visibility
-        cv2.putText(output_image, label, (x1+7, y1-12), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3)  # Shadow
-        cv2.putText(output_image, label, (x1+5, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)  # Main text
+        cv2.putText(output_image, label, (x1+7, y1-12),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3)  # Shadow
+        cv2.putText(output_image, label, (x1+5, y1-10),
+                    cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)  # Main text
         
         # Check for alerts
         if condition == "injured":
-            show_voice_alert("injury", f"Injured {detection['name']} needs help!", detection['name'], location)
+            show_voice_alert("injury",
+                             f"Injured {detection['name']} needs help!",
+                             detection['name'], location)
         
         if threats != ["None"]:
             threat_list = [t for t in threats if t != "None"]
             if threat_list:
-                show_voice_alert("threat", f"Threats detected: {', '.join(threat_list)}", location=location, threats=threat_list)
+                show_voice_alert("threat",
+                                 f"Threats detected: {', '.join(threat_list)}",
+                                 location=location, threats=threat_list)
     
     # Create DataFrame
-
-
-df = pd.DataFrame(results_list) if results_list else pd.DataFrame()
+    df = pd.DataFrame(results_list) if results_list else pd.DataFrame()
     return df, output_image
+
     
 def process_video_streamlit(video_path):
     """Process video with improved tracking and beautiful bbox visualization"""
@@ -1419,4 +1425,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
 
