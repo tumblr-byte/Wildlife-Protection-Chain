@@ -34,7 +34,7 @@ Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every an
 - **Human-in-the-loop Validation** – Key frame extraction allows people to **verify AI outputs** instead of relying blindly on automation.  
 - **Sustainability Focused** – Scales into conservation tech for long-term environmental monitoring.
 
-  **Note:** For best results, upload **high-quality images or videos with good lighting**. Low-resolution or poorly lit media may affect detection accuracy.
+ 
 
 ---
 
@@ -43,7 +43,8 @@ Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every an
 - **Top-5 frame validation** ensures trust in AI predictions.  
 - **Automated detection of threats** (fire, plastic, vehicles, poachers).  
 - **Proof of concept** with Pixabay/Pexels datasets.  
-- **Scalable design** for drones, ranger cameras, and IoT sensors.  
+- **Scalable design** for drones, ranger cameras, and IoT sensors.
+   **Note:** For best results, upload **high-quality images or videos with good lighting**. Low-resolution or poorly lit media may affect detection accuracy.
 
 ---
 
