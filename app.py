@@ -361,7 +361,7 @@ MODEL_FILES = {
     "best_train": "best_train.pt"
 }
 
-# GitHub Release URL for large model file
+
 MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
 
 def load_models_silently():
@@ -956,4 +956,5 @@ def process_video_streamlit(video_path):
         return df, output_path
     else:
         return pd.DataFrame(), output_path
+
 
