@@ -100,6 +100,20 @@ st.markdown("""
         margin: 1rem 0;
         border-left: 5px solid #FF9800;
     }
+    .frame-gallery {
+    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
+    padding: 1.5rem;
+    border-radius: 15px;
+    margin: 1rem 0;
+    border-left: 5px solid #2196F3;
+}
+.frame-item {
+    background: white;
+    padding: 1rem;
+    border-radius: 10px;
+    margin: 0.5rem 0;
+    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
+}
     @keyframes pulse {
         0% { opacity: 1; }
         50% { opacity: 0.7; }
@@ -370,11 +384,11 @@ condition_class = ["injured", "normal"]
 envo_class = {0: "weapon", 1: "fire"}
 more_envo_class = {0: "person", 2: "car", 7: "truck", -1: "plastic"}
 
-# Animal colors for bounding boxes
+# Animal colors for bounding boxes - Enhanced for better visibility
 animal_colors = {
-    "rhino": (255, 0, 0),      # Red
+    "rhino": (0, 255, 255),    # Cyan - more visible
     "elephant": (0, 255, 0),   # Green
-    "tiger": (0, 0, 255)       # Blue
+    "tiger": (255, 165, 0)     # Orange - more visible than blue
 }
 
 # Enhanced location system with regions - Single Wildlife Sanctuary
@@ -398,9 +412,9 @@ def get_random_location(animal_type):
 device = "cuda" if torch.cuda.is_available() else "cpu"
 
 def detect_animals_image(image, model2):
-    """Detect animals in a single image"""
+    """Detect animals in a single image - Fixed confidence threshold"""
     try:
-        results = model2(image, conf=0.5, verbose=False)
+        results = model2(image, conf=0.8, verbose=False)  # Changed to 0.8
         detections = []
 
         for r in results:
@@ -408,7 +422,7 @@ def detect_animals_image(image, model2):
                 continue
             for box in r.boxes:
                 conf = float(box.conf.cpu().numpy()[0])
-                if conf < 0.5:
+                if conf < 0.8:  # Changed to 0.8
                     continue
                 cls_id = int(box.cls.cpu().numpy()[0])
                 if cls_id >= len(animal_class):
@@ -429,9 +443,9 @@ def detect_animals_image(image, model2):
         return []
 
 def detect_all_animals(frame, model2):
-    """Detect animals in video frame"""
+    """Detect animals in video frame - Fixed confidence threshold"""
     try:
-        results = model2(frame, conf=0.8, verbose=False)
+        results = model2(frame, conf=0.8, verbose=False)  # Consistent 0.8 threshold
         detections = []
 
         for r in results:
@@ -439,7 +453,7 @@ def detect_all_animals(frame, model2):
                 continue
             for box in r.boxes:
                 conf = float(box.conf.cpu().numpy()[0])
-                if conf < 0.8:
+                if conf < 0.8:  # Consistent 0.8 threshold
                     continue
                 cls_id = int(box.cls.cpu().numpy()[0])
                 if cls_id >= len(animal_class):
@@ -509,29 +523,49 @@ def get_threats(frame, model, animal_envo):
 def calculate_distance(center1, center2):
     return np.sqrt((center1[0] - center2[0])**2 + (center1[1] - center2[1])**2)
 
-def simple_tracking(current_detections, previous_tracks, max_distance=100):
+def improved_tracking(current_detections, previous_tracks, max_distance=150):
+    """Improved tracking system to prevent duplicate IDs"""
     tracks = []
     used_track_ids = set()
+    
+    # Sort detections by confidence to prioritize better detections
+    current_detections = sorted(current_detections, key=lambda x: x["conf"], reverse=True)
     
     for detection in current_detections:
         best_match = None
         min_distance = float('inf')
         
+        # Find the closest matching track of the same species
         for track_id, prev_info in previous_tracks.items():
             if track_id in used_track_ids:
                 continue
                 
             if prev_info["name"] == detection["name"]:
                 distance = calculate_distance(detection["center"], prev_info["center"])
+                # Use stricter distance threshold and confidence check
                 if distance < max_distance and distance < min_distance:
-                    min_distance = distance
-                    best_match = track_id
+                    # Additional check: confidence should be similar (within 0.3 range)
+                    conf_diff = abs(detection["conf"] - prev_info.get("conf", detection["conf"]))
+                    if conf_diff < 0.3:
+                        min_distance = distance
+                        best_match = track_id
         
         if best_match:
             track_id = best_match
             used_track_ids.add(track_id)
         else:
-            track_id = f"{detection['name']}_{len(previous_tracks) + len(tracks) + 1}"
+            # Create new track ID with species count check
+            existing_species_tracks = [tid for tid in previous_tracks.keys() if detection["name"] in tid]
+            existing_current_species = [t["track_id"] for t in tracks if detection["name"] in t["track_id"]]
+            
+            # Count existing tracks of this species
+            species_count = len(existing_species_tracks) + len(existing_current_species) + 1
+            track_id = f"{detection['name']}_{species_count}"
+            
+            # Ensure uniqueness
+            while track_id in previous_tracks or track_id in [t["track_id"] for t in tracks]:
+                species_count += 1
+                track_id = f"{detection['name']}_{species_count}"
         
         tracks.append({
             "track_id": track_id,
@@ -588,7 +622,7 @@ def show_voice_alert(alert_type, message, animal_type="", location="", threats=[
                 st.info("🔇 Browser speech not supported on this device")
 
 def process_single_image(image_array):
-    """Process a single image for wildlife detection"""
+    """Process a single image for wildlife detection - Fixed threat detection threshold"""
     model, model2, animal_envo, animal_condition_model = load_models_silently()
     
     if not all([model, model2, animal_envo, animal_condition_model]):
@@ -603,19 +637,20 @@ def process_single_image(image_array):
     results_list = []
     output_image = image_array.copy()
     
-    # Check for threats - enhanced for images
+    # Check for threats - Fixed confidence threshold for images
     threats = []
     try:
-        # Use lower confidence for images
-        results1 = model(image_array, conf=0.7, verbose=False)
+        # Changed from 0.7 to 0.6 for better threat detection in images
+        results1 = model(image_array, conf=0.6, verbose=False)
         for result in results1:
             if result.boxes is not None:
                 for box in result.boxes:
                     cls_id = int(box.cls.cpu().numpy()[0])
                     conf = float(box.conf.cpu().numpy()[0])
-                    if conf >= 0.7 and cls_id in more_envo_class:
+                    if conf >= 0.6 and cls_id in more_envo_class:
                         threats.append(more_envo_class[cls_id])
 
+        # Changed from 0.4 to 0.6 as requested
         results2 = animal_envo(image_array, conf=0.6, verbose=False)
         for result in results2:
             if result.boxes is not None:
@@ -657,17 +692,25 @@ def process_single_image(image_array):
         
         results_list.append(animal_record)
         
-        # Draw bounding box
+        # Enhanced bounding box drawing with better visibility
         x1, y1, x2, y2 = detection["bbox"]
         color = animal_colors.get(detection["name"], (255, 255, 255))
         
-        cv2.rectangle(output_image, (x1, y1), (x2, y2), color, 3)
+        # Draw thicker, more visible bounding box
+        cv2.rectangle(output_image, (x1, y1), (x2, y2), color, 4)  # Increased thickness
         
-        # Add label
+        # Add semi-transparent background for label
         label = f"{detection['name'].title()} ({condition})"
-        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.7, 2)[0]
-        cv2.rectangle(output_image, (x1, y1-30), (x1+label_size[0]+10, y1), color, -1)
-        cv2.putText(output_image, label, (x1+5, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 255, 255), 2)
+        label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
+        
+        # Draw background rectangle with some transparency effect
+        overlay = output_image.copy()
+        cv2.rectangle(overlay, (x1, y1-35), (x1+label_size[0]+15, y1), color, -1)
+        output_image = cv2.addWeighted(overlay, 0.8, output_image, 0.2, 0)
+        
+        # Add white text with shadow for better visibility
+        cv2.putText(output_image, label, (x1+7, y1-12), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (0, 0, 0), 3)  # Shadow
+        cv2.putText(output_image, label, (x1+5, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)  # Main text
         
         # Check for alerts
         if condition == "injured":
@@ -679,22 +722,24 @@ def process_single_image(image_array):
                 show_voice_alert("threat", f"Threats detected: {', '.join(threat_list)}", location=location, threats=threat_list)
     
     # Create DataFrame
-    df = pd.DataFrame(results_list) if results_list else pd.DataFrame()
+
+
+df = pd.DataFrame(results_list) if results_list else pd.DataFrame()
     return df, output_image
     
 def process_video_streamlit(video_path):
-    """Process video with tracking and blockchain logging"""
+    """Process video with improved tracking and beautiful bbox visualization"""
     model, model2, animal_envo, animal_condition_model = load_models_silently()
     
     if not all([model, model2, animal_envo, animal_condition_model]):
         st.error("❌ Failed to load AI models. Please check model files and try again.")
-        return None, None
+        return None, None, None
     
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():
         st.error("Error opening video file")
-        return None, None
+        return None, None, None
     
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -712,6 +757,7 @@ def process_video_streamlit(video_path):
     last_conditions = {}
     last_threats = ["None"]
     frame_count = 0
+    top_frames = []  # Store top 5 frames with most detections
     
     # Alert tracking
     injury_alerts = set()
@@ -740,9 +786,24 @@ def process_video_streamlit(video_path):
             current_detections = detect_all_animals(frame, model2)
         
         if current_detections:
-            tracks = simple_tracking(current_detections, previous_tracks)
+            tracks = improved_tracking(current_detections, previous_tracks)  # Using improved tracking
             
-            # Update previous tracks
+            # Store frame for top 5 if it has detections
+            if len(tracks) > 0:
+                frame_data = {
+                    'frame': frame.copy(),
+                    'timestamp': round(timestamp, 2),
+                    'detection_count': len(tracks),
+                    'frame_number': frame_count,
+                    'animals': [track["detection"]["name"] for track in tracks]
+                }
+                top_frames.append(frame_data)
+                # Keep only top 5 frames with most detections
+                top_frames.sort(key=lambda x: x['detection_count'], reverse=True)
+                if len(top_frames) > 5:
+                    top_frames = top_frames[:5]
+            
+            # Update previous tracks with confidence info
             previous_tracks = {}
             for track in tracks:
                 track_id = track["track_id"]
@@ -752,7 +813,8 @@ def process_video_streamlit(video_path):
                     "name": detection["name"],
                     "center": detection["center"],
                     "bbox": detection["bbox"],
-                    "cropped": detection["cropped"]
+                    "cropped": detection["cropped"],
+                    "conf": detection["conf"]  # Store confidence for better tracking
                 }
             
             # Check conditions
@@ -805,17 +867,63 @@ def process_video_streamlit(video_path):
                     if last_threats != ["None"] and tuple(last_threats) not in threat_alerts:
                         threat_alerts.add(tuple(last_threats))
                 
-                # Draw bounding box with animal-specific color
+                # Enhanced bounding box drawing for video with better visibility
                 x1, y1, x2, y2 = detection["bbox"]
                 color = animal_colors.get(detection["name"], (255, 255, 255))
                 
-                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 3)
+                # Draw main bounding box with increased thickness
+                cv2.rectangle(frame, (x1, y1), (x2, y2), color, 5)  # Increased thickness to 5
                 
-                # Add label with background
-                label = f"{detection['name'].title()} {track_id.split('_')[-1]}"
-                label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.8, 2)[0]
-                cv2.rectangle(frame, (x1, y1-30), (x1+label_size[0]+10, y1), color, -1)
-                cv2.putText(frame, label, (x1+5, y1-10), cv2.FONT_HERSHEY_SIMPLEX, 0.8, (255, 255, 255), 2)
+                # Add corner markers for better visibility
+                corner_length = 20
+                corner_thickness = 3
+                
+                # Top-left corner
+                cv2.line(frame, (x1, y1), (x1 + corner_length, y1), color, corner_thickness)
+                cv2.line(frame, (x1, y1), (x1, y1 + corner_length), color, corner_thickness)
+                
+                # Top-right corner
+                cv2.line(frame, (x2, y1), (x2 - corner_length, y1), color, corner_thickness)
+                cv2.line(frame, (x2, y1), (x2, y1 + corner_length), color, corner_thickness)
+                
+                # Bottom-left corner
+                cv2.line(frame, (x1, y2), (x1 + corner_length, y2), color, corner_thickness)
+                cv2.line(frame, (x1, y2), (x1, y2 - corner_length), color, corner_thickness)
+                
+                # Bottom-right corner
+                cv2.line(frame, (x2, y2), (x2 - corner_length, y2), color, corner_thickness)
+                cv2.line(frame, (x2, y2), (x2, y2 - corner_length), color, corner_thickness)
+                
+                # Enhanced label with background and better visibility
+                track_number = track_id.split('_')[-1]
+                label = f"{detection['name'].title()} #{track_number}"
+                confidence_label = f"Conf: {detection['conf']:.2f}"
+                
+                # Calculate label dimensions
+                label_size = cv2.getTextSize(label, cv2.FONT_HERSHEY_SIMPLEX, 0.9, 2)[0]
+                conf_size = cv2.getTextSize(confidence_label, cv2.FONT_HERSHEY_SIMPLEX, 0.6, 2)[0]
+                
+                max_width = max(label_size[0], conf_size[0]) + 20
+                total_height = label_size[1] + conf_size[1] + 20
+                
+                # Create semi-transparent background
+                overlay = frame.copy()
+                cv2.rectangle(overlay, (x1, y1-total_height-10), (x1+max_width, y1), color, -1)
+                frame = cv2.addWeighted(overlay, 0.8, frame, 0.2, 0)
+                
+                # Add text with shadows for better readability
+                # Main label with shadow
+                cv2.putText(frame, label, (x1+12, y1-total_height+25), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (0, 0, 0), 3)  # Shadow
+                cv2.putText(frame, label, (x1+10, y1-total_height+23), cv2.FONT_HERSHEY_SIMPLEX, 0.9, (255, 255, 255), 2)  # Main text
+                
+                # Confidence label with shadow
+                cv2.putText(frame, confidence_label, (x1+12, y1-8), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 0, 0), 2)  # Shadow
+                cv2.putText(frame, confidence_label, (x1+10, y1-6), cv2.FONT_HERSHEY_SIMPLEX, 0.6, (255, 255, 255), 1)  # Main text
+                
+                # Add center dot for tracking visualization
+                center_x, center_y = detection["center"]
+                cv2.circle(frame, (center_x, center_y), 5, color, -1)
+                cv2.circle(frame, (center_x, center_y), 8, (255, 255, 255), 2)
         
         out.write(frame)
         frame_count += 1
@@ -843,9 +951,9 @@ def process_video_streamlit(video_path):
     # Create DataFrame
     if results_list:
         df = pd.DataFrame(results_list)
-        return df, output_path
+        return df, output_path, top_frames
     else:
-        return pd.DataFrame(), output_path
+        return pd.DataFrame(), output_path, top_frames
 
 # Main Streamlit App
 def main():
@@ -977,12 +1085,13 @@ def main():
                                 load_models_silently()
                                 temp_status.empty()
                         
-                        df, output_video_path = process_video_streamlit(st.session_state.video_path)
+                        df, output_video_path, top_frames = process_video_streamlit(st.session_state.video_path)
                         
                         if df is not None and not df.empty:
                             st.session_state.results_df = df
                             st.session_state.output_video_path = output_video_path
                             st.session_state.processing_complete = True
+                            st.session_state.top_frames = top_frames
                             
                             # Add to session history
                             add_to_session_history("Video Analysis", df)
@@ -1090,6 +1199,44 @@ def main():
                         st.error("Video file not available for download")
                 else:
                     st.info("📷 Video download available for video analysis only")
+            
+            # Top 5 Frames section for video analysis
+            if hasattr(st.session_state, 'top_frames') and st.session_state.top_frames and upload_type == "🎥 Video Analysis":
+                st.markdown("---")
+                st.markdown("### 🖼️ Top 5 Detection Frames")
+                st.markdown("""
+                <div class="frame-gallery">
+                    <p>📸 Below are the 5 frames with the highest number of animal detections from your video:</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                for i, frame_data in enumerate(st.session_state.top_frames):
+                    st.markdown(f"""
+                    <div class="frame-item">
+                        <h4>Frame #{i+1} - {frame_data['detection_count']} animals detected</h4>
+                        <p>⏱️ Timestamp: {frame_data['timestamp']}s | 🎬 Frame: {frame_data['frame_number']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Convert BGR to RGB for display
+                    frame_rgb = cv2.cvtColor(frame_data['frame'], cv2.COLOR_BGR2RGB)
+                    st.image(frame_rgb, caption=f"Top Frame #{i+1}", use_column_width=True)
+                    
+                    # Download button for individual frame
+                    frame_pil = Image.fromarray(frame_rgb)
+                    buf = io.BytesIO()
+                    frame_pil.save(buf, format="PNG")
+                    st.download_button(
+                        f"📥 Download Frame #{i+1}",
+                        buf.getvalue(),
+                        f"top_frame_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                        "image/png",
+                        key=f'download-frame-{i}',
+                        use_container_width=True
+                    )
+                    
+                    if i < len(st.session_state.top_frames) - 1:
+                        st.markdown("---")
     
     with col2:
         st.subheader("🔗 Blockchain Security")
@@ -1237,7 +1384,9 @@ def main():
                 """, unsafe_allow_html=True)
         else:
             st.info("🔍 No analyses performed yet in this session")
-        
+
+
+                    
         # Help section
         with st.expander("ℹ️ Help & Information"):
             st.markdown("""
@@ -1254,9 +1403,8 @@ def main():
             - Rhinos 🦏
             
             **⚠️ Threat Detection:**
-            - Weapon and fire
+            - Weapons and fire
             - Vehicles and humans
-  
             
             **🔊 Voice Alerts:**
             - Injured animal notifications
@@ -1271,3 +1419,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
