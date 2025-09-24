@@ -73,11 +73,12 @@ Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every an
 ---
 
 ## Example Output (CSV Log)  
-| Timestamp           | Location   | Species  | Condition | Threats          |  
-|---------------------|-----------|----------|-----------|------------------|  
-| 2025-09-23 14:22:11 | X1-Y9-Z3  | Elephant | Injured   | Plastic, Person  |  
-| 2025-09-23 14:23:04 | A4-B2-C6  | Tiger    | Normal    | None             |  
-| 2025-09-23 14:25:19 | D3-E7-F1  | Rhino    | Normal    | Vehicle, Fire    |  
+| Timestamp (s) | Location   | Species  | Condition | Threats          |  
+|---------------|-----------|----------|-----------|------------------|  
+| 0.3           | X1-Y9-Z3  | Elephant | Injured   | Plastic, Person  |  
+| 2.5           | A4-B2-C6  | Tiger    | Normal    | None             |  
+| 15.7          | D3-E7-F1  | Rhino    | Normal    | Vehicle, Fire    |  
+ 
 
 ---
 
