@@ -13,7 +13,7 @@ import numpy as np
 #loads your model
 model = YOLO("yolo12n.pt")  # pretrained YOLO12 model used to detect general environment objects
 model2 = YOLO("best.pt")  # custom YOLO12 model trained on species types (rhino, elephant, tiger)
-species_envo = YOLO("bests.pt")  # custom YOLO12 model trained on threat (weapon/environment) detection
+species_envo = YOLO("envo_best.pt")  # custom YOLO12 model trained on threat (weapon/environment) detection
 
 
 # pretrained ResNet18 model where `best_train.pt` is trained to classify species condition (normal or injured)
@@ -232,3 +232,4 @@ def process_video(video_path, out_csv="output.csv", out_video="output_tracked.mp
 # path to the input video file to be processed
 video_path = "/content/12953739_1920_1080_60fps.mp4" 
 process_video(video_path, out_csv="output.csv", out_video="output_tracked7.mp4")
+
