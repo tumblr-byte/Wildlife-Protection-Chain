@@ -32,7 +32,9 @@ Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every an
 - **Endangered Wildlife Protection** – Elephants, rhinos, and tigers face constant threats from poaching, habitat loss, and human interference.  
 - **Transparency & Trust** – Blockchain ensures every record is immutable and cannot be tampered with.  
 - **Human-in-the-loop Validation** – Key frame extraction allows people to **verify AI outputs** instead of relying blindly on automation.  
-- **Sustainability Focused** – Scales into conservation tech for long-term environmental monitoring.  
+- **Sustainability Focused** – Scales into conservation tech for long-term environmental monitoring.
+
+  **Note:** For best results, upload **high-quality images or videos with good lighting**. Low-resolution or poorly lit media may affect detection accuracy.
 
 ---
 
