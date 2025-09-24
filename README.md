@@ -44,7 +44,7 @@ Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every an
 - **Automated detection of threats** (fire, plastic, vehicles, poachers).  
 - **Proof of concept** with Pixabay/Pexels datasets.  
 - **Scalable design** for drones, ranger cameras, and IoT sensors.
-   **Note:** For best results, upload **high-quality images or videos with good lighting**. Low-resolution or poorly lit media may affect detection accuracy.
+- **Note:** For best results, upload **high-quality images or videos with good lighting**. Low-resolution or poorly lit media may affect detection accuracy.
 
 ---
 
