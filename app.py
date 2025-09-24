@@ -100,20 +100,6 @@ st.markdown("""
         margin: 1rem 0;
         border-left: 5px solid #FF9800;
     }
-    .frame-gallery {
-    background: linear-gradient(135deg, #E3F2FD 0%, #BBDEFB 100%);
-    padding: 1.5rem;
-    border-radius: 15px;
-    margin: 1rem 0;
-    border-left: 5px solid #2196F3;
-}
-.frame-item {
-    background: white;
-    padding: 1rem;
-    border-radius: 10px;
-    margin: 0.5rem 0;
-    box-shadow: 0 2px 8px rgba(33, 150, 243, 0.2);
-}
     @keyframes pulse {
         0% { opacity: 1; }
         50% { opacity: 0.7; }
@@ -630,13 +616,13 @@ def process_single_image(image_array):
                     if conf >= 0.7 and cls_id in more_envo_class:
                         threats.append(more_envo_class[cls_id])
 
-        results2 = animal_envo(image_array, conf=0.4, verbose=False)
+        results2 = animal_envo(image_array, conf=0.6, verbose=False)
         for result in results2:
             if result.boxes is not None:
                 for box in result.boxes:
                     cls_id = int(box.cls.cpu().numpy()[0])
                     conf = float(box.conf.cpu().numpy()[0])
-                    if conf >= 0.4 and cls_id in envo_class:
+                    if conf >= 0.6 and cls_id in envo_class:
                         threats.append(envo_class[cls_id])
     except:
         pass
@@ -702,13 +688,13 @@ def process_video_streamlit(video_path):
     
     if not all([model, model2, animal_envo, animal_condition_model]):
         st.error("❌ Failed to load AI models. Please check model files and try again.")
-        return None, None, None
+        return None, None
     
     cap = cv2.VideoCapture(video_path)
     
     if not cap.isOpened():
         st.error("Error opening video file")
-        return None, None, None
+        return None, None
     
     width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
@@ -726,7 +712,6 @@ def process_video_streamlit(video_path):
     last_conditions = {}
     last_threats = ["None"]
     frame_count = 0
-    top_frames = []  # Store top 5 frames with most detections
     
     # Alert tracking
     injury_alerts = set()
@@ -756,21 +741,6 @@ def process_video_streamlit(video_path):
         
         if current_detections:
             tracks = simple_tracking(current_detections, previous_tracks)
-            
-            # Store frame for top 5 if it has detections
-            if len(tracks) > 0:
-                frame_data = {
-                    'frame': frame.copy(),
-                    'timestamp': round(timestamp, 2),
-                    'detection_count': len(tracks),
-                    'frame_number': frame_count,
-                    'animals': [track["detection"]["name"] for track in tracks]
-                }
-                top_frames.append(frame_data)
-                # Keep only top 5 frames with most detections
-                top_frames.sort(key=lambda x: x['detection_count'], reverse=True)
-                if len(top_frames) > 5:
-                    top_frames = top_frames[:5]
             
             # Update previous tracks
             previous_tracks = {}
@@ -873,9 +843,9 @@ def process_video_streamlit(video_path):
     # Create DataFrame
     if results_list:
         df = pd.DataFrame(results_list)
-        return df, output_path, top_frames
+        return df, output_path
     else:
-        return pd.DataFrame(), output_path, top_frames
+        return pd.DataFrame(), output_path
 
 # Main Streamlit App
 def main():
@@ -1007,13 +977,12 @@ def main():
                                 load_models_silently()
                                 temp_status.empty()
                         
-                        df, output_video_path, top_frames = process_video_streamlit(st.session_state.video_path)
+                        df, output_video_path = process_video_streamlit(st.session_state.video_path)
                         
                         if df is not None and not df.empty:
                             st.session_state.results_df = df
                             st.session_state.output_video_path = output_video_path
                             st.session_state.processing_complete = True
-                            st.session_state.top_frames = top_frames
                             
                             # Add to session history
                             add_to_session_history("Video Analysis", df)
@@ -1121,44 +1090,6 @@ def main():
                         st.error("Video file not available for download")
                 else:
                     st.info("📷 Video download available for video analysis only")
-            
-            # Top 5 Frames section for video analysis
-            if hasattr(st.session_state, 'top_frames') and st.session_state.top_frames and upload_type == "🎥 Video Analysis":
-                st.markdown("---")
-                st.markdown("### 🖼️ Top 5 Detection Frames")
-                st.markdown("""
-                <div class="frame-gallery">
-                    <p>📸 Below are the 5 frames with the highest number of animal detections from your video:</p>
-                </div>
-                """, unsafe_allow_html=True)
-                
-                for i, frame_data in enumerate(st.session_state.top_frames):
-                    st.markdown(f"""
-                    <div class="frame-item">
-                        <h4>Frame #{i+1} - {frame_data['detection_count']} animals detected</h4>
-                        <p>⏱️ Timestamp: {frame_data['timestamp']}s | 🎬 Frame: {frame_data['frame_number']}</p>
-                    </div>
-                    """, unsafe_allow_html=True)
-                    
-                    # Convert BGR to RGB for display
-                    frame_rgb = cv2.cvtColor(frame_data['frame'], cv2.COLOR_BGR2RGB)
-                    st.image(frame_rgb, caption=f"Top Frame #{i+1}", use_column_width=True)
-                    
-                    # Download button for individual frame
-                    frame_pil = Image.fromarray(frame_rgb)
-                    buf = io.BytesIO()
-                    frame_pil.save(buf, format="PNG")
-                    st.download_button(
-                        f"📥 Download Frame #{i+1}",
-                        buf.getvalue(),
-                        f"top_frame_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
-                        "image/png",
-                        key=f'download-frame-{i}',
-                        use_container_width=True
-                    )
-                    
-                    if i < len(st.session_state.top_frames) - 1:
-                        st.markdown("---")
     
     with col2:
         st.subheader("🔗 Blockchain Security")
@@ -1323,8 +1254,9 @@ def main():
             - Rhinos 🦏
             
             **⚠️ Threat Detection:**
-            - Weapons and fire
+            - Weapon and fire
             - Vehicles and humans
+  
             
             **🔊 Voice Alerts:**
             - Injured animal notifications
@@ -1339,5 +1271,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
