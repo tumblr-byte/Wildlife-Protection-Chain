@@ -312,12 +312,12 @@ if 'total_analyses' not in st.session_state:
 MODEL_FILES = {
     "yolo12n": "yolo12n.pt",
     "best": "best.pt", 
-    "bests": "bests.pt",
+    "bests": "envo_best.pt",
     "best_train": "best_train.pt"
 }
 
 # GitHub Release URL for large model file
-MODEL_URL = "https://github.com//Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
+MODEL_URL = "https://github.com/tumblr-byte/Wildlife-Protection-Chain/releases/download/v1.0.0-models/best_train.pt"
 
 def load_models_silently():
     """Load all AI models silently in the background"""
@@ -1007,7 +1007,6 @@ def main():
                                 load_models_silently()
                                 temp_status.empty()
                         
-                       
                         df, output_video_path, top_frames = process_video_streamlit(st.session_state.video_path)
                         
                         if df is not None and not df.empty:
@@ -1122,43 +1121,44 @@ def main():
                         st.error("Video file not available for download")
                 else:
                     st.info("📷 Video download available for video analysis only")
-                    # Top 5 Frames section for video analysis
-if hasattr(st.session_state, 'top_frames') and st.session_state.top_frames and upload_type == "🎥 Video Analysis":
-    st.markdown("---")
-    st.markdown("### 🖼️ Top 5 Detection Frames")
-    st.markdown("""
-    <div class="frame-gallery">
-        <p>📸 Below are the 5 frames with the highest number of animal detections from your video:</p>
-    </div>
-    """, unsafe_allow_html=True)
-    
-    for i, frame_data in enumerate(st.session_state.top_frames):
-        st.markdown(f"""
-        <div class="frame-item">
-            <h4>Frame #{i+1} - {frame_data['detection_count']} animals detected</h4>
-            <p>⏱️ Timestamp: {frame_data['timestamp']}s | 🎬 Frame: {frame_data['frame_number']}</p>
-        </div>
-        """, unsafe_allow_html=True)
-        
-        # Convert BGR to RGB for display
-        frame_rgb = cv2.cvtColor(frame_data['frame'], cv2.COLOR_BGR2RGB)
-        st.image(frame_rgb, caption=f"Top Frame #{i+1}", use_column_width=True)
-        
-        # Download button for individual frame
-        frame_pil = Image.fromarray(frame_rgb)
-        buf = io.BytesIO()
-        frame_pil.save(buf, format="PNG")
-        st.download_button(
-            f"📥 Download Frame #{i+1}",
-            buf.getvalue(),
-            f"top_frame_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
-            "image/png",
-            key=f'download-frame-{i}',
-            use_container_width=True
-        )
-        
-        if i < len(st.session_state.top_frames) - 1:
-            st.markdown("---")
+            
+            # Top 5 Frames section for video analysis
+            if hasattr(st.session_state, 'top_frames') and st.session_state.top_frames and upload_type == "🎥 Video Analysis":
+                st.markdown("---")
+                st.markdown("### 🖼️ Top 5 Detection Frames")
+                st.markdown("""
+                <div class="frame-gallery">
+                    <p>📸 Below are the 5 frames with the highest number of animal detections from your video:</p>
+                </div>
+                """, unsafe_allow_html=True)
+                
+                for i, frame_data in enumerate(st.session_state.top_frames):
+                    st.markdown(f"""
+                    <div class="frame-item">
+                        <h4>Frame #{i+1} - {frame_data['detection_count']} animals detected</h4>
+                        <p>⏱️ Timestamp: {frame_data['timestamp']}s | 🎬 Frame: {frame_data['frame_number']}</p>
+                    </div>
+                    """, unsafe_allow_html=True)
+                    
+                    # Convert BGR to RGB for display
+                    frame_rgb = cv2.cvtColor(frame_data['frame'], cv2.COLOR_BGR2RGB)
+                    st.image(frame_rgb, caption=f"Top Frame #{i+1}", use_column_width=True)
+                    
+                    # Download button for individual frame
+                    frame_pil = Image.fromarray(frame_rgb)
+                    buf = io.BytesIO()
+                    frame_pil.save(buf, format="PNG")
+                    st.download_button(
+                        f"📥 Download Frame #{i+1}",
+                        buf.getvalue(),
+                        f"top_frame_{i+1}_{datetime.now().strftime('%Y%m%d_%H%M%S')}.png",
+                        "image/png",
+                        key=f'download-frame-{i}',
+                        use_container_width=True
+                    )
+                    
+                    if i < len(st.session_state.top_frames) - 1:
+                        st.markdown("---")
     
     with col2:
         st.subheader("🔗 Blockchain Security")
@@ -1325,7 +1325,6 @@ if hasattr(st.session_state, 'top_frames') and st.session_state.top_frames and u
             **⚠️ Threat Detection:**
             - Weapons and fire
             - Vehicles and humans
-        
             
             **🔊 Voice Alerts:**
             - Injured animal notifications
