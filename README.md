@@ -8,7 +8,7 @@ Using **sample images and videos (Pixabay/Pexels)**, the system:
 - Identifies their **condition** (**Normal / Injured**)  
 - Recognizes environmental threats (**Person, Vehicle, Plastic, Fire, Weapon**)  
 
-Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every animal detection event** on the blockchain — including species, condition, environment, time, and location — creating a **tamper-proof record of wildlife observations**.  
+Unlike traditional alert-only systems, **Wildlife-Protection-Chain logs every animal detection event** on the blockchain including species, condition, environment, time, and location creating a **tamper-proof record of wildlife observations**.  
 
 ---
 
